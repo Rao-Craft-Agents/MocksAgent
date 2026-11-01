@@ -1,0 +1,9 @@
+{
+  "name": "Mocks",
+  "tagline": "Believable mock backend data for an app's API, so its screens, previews and tests run with no server.",
+  "category": "developer",
+  "keywords": ["swift", "mocks", "fixtures", "previews", "testing", "swiftui", "granite", "loom"],
+  "platforms": ["macOS 14"],
+  "license": "MIT",
+  "description": "Realistic mock backend responses for an app's API. Say what the app is (`a cozy recipe-sharing community`) and Mocks writes into the client package Network made a mock backend that answers every endpoint in the process: people with handles and faces, the groups they post in, posts in the app's own voice, comment threads with depth, counts that agree, pictures drawn as soft gradients and served as data: URLs, lists that page and end, an item found by the id asked for, a body echoed back.\n\nThe app gets `RecipeClient.mock()` for previews and tests, `.mock(.failing)`, `.empty`, `.unauthorized` and `.slow` for the other states, and `RecipeClient.current`, the mock when launched with `-mock YES` or in a test and the live API otherwise. The package's own tests prove every fixture decodes, pages end and every scenario fails as it should.\n\nThe host's model writes what the records say, in small batches checked against the API's types and asked again when they are wrong; ids, dates, references, counts and pages are the agent's, so everything agrees. Without a model, word lists write it.\n\nOne of the Rao Craft Agents: independent packages that, tagged in prompts along the life of a project, build an app of Loom's quality."
+}
