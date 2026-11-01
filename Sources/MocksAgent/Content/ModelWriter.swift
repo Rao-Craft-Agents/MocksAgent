@@ -37,6 +37,10 @@ struct ModelWriter: ContentWriter {
             asked.taken = ask.taken + good.flatMap { record in
                 ask.fields.filter { $0.role == .handle || $0.role == .title }.compactMap { record[$0.name]?.text }
             }
+            asked.handles = ask.handles + good.flatMap { record in
+                ask.fields.filter { $0.role == .handle }.compactMap { record[$0.name]?.text }
+            }
+            asked.angles = Array(ask.angles.suffix(wanted))
             let user = ContentPrompt.recordsUser(asked, theme: theme, count: wanted, problems: round == 1 ? [] : problems)
             let perRecord = ask.part == .content ? 420 : 160
             let maxTokens = min(8_000, 300 + perRecord * wanted)
@@ -80,14 +84,15 @@ struct ModelWriter: ContentWriter {
             guard !pending.isEmpty else { break }
             let user = ContentPrompt.threadsUser(ask, theme: theme, parents: pending, problems: round == 1 ? [] : problems)
             let replies = pending.reduce(0) { $0 + $1.count }
-            let maxTokens = min(8_000, 250 + 110 * replies)
+            let maxTokens = min(8_000, 250 + 150 * replies)
             asks += 1
             if round > 1 { retries += 1 }
             do {
                 let data = try await model.object(schema: ContentPrompt.threadsSchema(ask), system: system, user: user,
                                                   maxTokens: maxTokens, seconds: 60 + Double(maxTokens) / 25)
                 problems = []
-                for (number, result) in ContentCheck.threads(data, ask: ask, parents: pending) {
+                // The first answer is held to the depth asked for; a later one is taken as it reads.
+                for (number, result) in ContentCheck.threads(data, ask: ask, parents: pending, strict: round == 1) {
                     switch result {
                     case .success(let lines): done[number] = lines
                     case .failure(let failure): problems.append(failure.reason)

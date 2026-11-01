@@ -56,6 +56,23 @@ enum ContentPrompt {
 
     // MARK: - Records
 
+    /// What a record people discuss can be, one a record in turn, so a batch reads like a feed rather than one post
+    /// written six times. About people and what they do, never about a topic, so it fits any app.
+    static let angles = [
+        "showing something they made or did, and how it went",
+        "a question for the others",
+        "a tip or a shortcut they swear by",
+        "something that went wrong, and what they learned",
+        "asking for a recommendation",
+        "a first time, or a small milestone",
+        "comparing two ways of doing something",
+        "sharing something they found: a link, a book, a place",
+        "a plan for the week, asking for ideas",
+        "an opinion others may disagree with",
+        "thanking someone here for their advice",
+        "a short, casual note about their day",
+    ]
+
     static func recordsUser(_ ask: RecordAsk, theme: Theme, count: Int, problems: [String]) -> String {
         var parts: [String] = []
         parts.append("The app: \(theme.text).")
@@ -69,7 +86,15 @@ enum ContentPrompt {
             parts.append("The \(SwiftName.plural(ask.groupNoun)): " + ask.groups.map { "\($0.handle) (\"\($0.title)\")" }.joined(separator: ", ")
                          + ". Put each one where it belongs, and spread them over several.")
         }
-        if !ask.taken.isEmpty { parts.append("Already taken, never use again: " + ask.taken.suffix(80).joined(separator: ", ")) }
+        if !ask.angles.isEmpty {
+            parts.append("What each one is, in order:\n" + ask.angles.enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n"))
+        }
+        if ask.part == .content, ask.fields.contains(where: { $0.role == .title }) {
+            let group = ask.groups.isEmpty ? "" : "never the \(ask.groupNoun)'s name, "
+            parts.append("A title is what its writer typed for that one \(SwiftName.words(ask.type).lowercased()) alone: \(group)never numbered like a series, never \"Again\" or \"Part 2\".")
+        }
+        // Only handles: a model shown the titles already taken writes variations of them.
+        if !ask.handles.isEmpty { parts.append("Handles already taken, never use again: " + ask.handles.suffix(80).joined(separator: ", ")) }
         if !problems.isEmpty { parts.append("What was wrong:\n" + problems.map { "- \($0)" }.joined(separator: "\n")) }
         parts.append("Answer {\"\(ask.plural)\": [...]} with \(count) of them.")
         return parts.joined(separator: "\n\n")

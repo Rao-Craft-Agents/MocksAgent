@@ -75,6 +75,40 @@ final class ContentCheckTests: XCTestCase {
         XCTAssertTrue(forward.reason.contains("not an earlier reply's id"), forward.reason)
     }
 
+    /// A first answer is held to the depth and order asked for; a later one is taken as it reads (no depth asked for,
+    /// a reply to nothing earlier answers the post). In either, half the replies asked for are enough, never fewer.
+    func testALaterAnswerIsTakenAsItReads() {
+        let field = AskField(name: "content", kind: .string, optional: false, role: .body(.plain), note: "what it says")
+        let parents = [ThreadAsk.Parent(number: 1, title: "Bread", body: nil, author: "theo", count: 4),
+                       ThreadAsk.Parent(number: 2, title: "Cake", body: nil, author: "ines", count: 3),
+                       ThreadAsk.Parent(number: 3, title: "Soup", body: nil, author: "maya", count: 6),
+                       ThreadAsk.Parent(number: 4, title: "Kimchi", body: nil, author: "ruth", count: 5)]
+        let ask = ThreadAsk(parents: parents, field: field, threaded: true, noun: "comment", parentNoun: "post")
+        let answer = #"""
+        {"threads": [
+          {"post": 1, "comments": [{"id": 1, "replyTo": null, "text": "Crumb!"}, {"id": 2, "replyTo": 1, "text": "Thanks."},
+                                   {"id": 3, "replyTo": null, "text": "Flour?"}, {"id": 4, "replyTo": 3, "text": "Bread flour."}]},
+          {"post": 2, "comments": [{"id": 1, "replyTo": 3, "text": "Yum."}, {"id": 2, "replyTo": null, "text": "Recipe?"}, {"id": 3, "replyTo": null, "text": "Saved."}]},
+          {"post": 3, "comments": [{"id": 1, "replyTo": null, "text": "Lovely."}, {"id": 2, "replyTo": 1, "text": "Agreed!"}]},
+          {"post": 4, "comments": [{"id": 1, "replyTo": null, "text": "How long?"}, {"id": 2, "replyTo": 1, "text": "Three days."},
+                                   {"id": 3, "replyTo": 2, "text": "Even in summer?"}]}
+        ]}
+        """#
+        let strict = ContentCheck.threads(Data(answer.utf8), ask: ask, parents: parents)
+        guard case .failure? = strict[1], case .failure? = strict[2] else { return XCTFail("a first answer is held to depth and order") }
+        guard case .failure(let short)? = strict[3] else { return XCTFail("2 of 6 is fewer than half") }
+        XCTAssertTrue(short.reason.contains("it has 2 replies, and 6 were asked for"), short.reason)
+        guard case .success(let three)? = strict[4] else { return XCTFail("3 of 5 is enough") }
+        XCTAssertEqual(three.map(\.replyTo), [nil, 0, 1])
+
+        let later = ContentCheck.threads(Data(answer.utf8), ask: ask, parents: parents, strict: false)
+        guard case .success(let flat)? = later[1] else { return XCTFail("a thread with no depth is taken later") }
+        XCTAssertEqual(flat.map(\.replyTo), [nil, 0, nil, 2])
+        guard case .success(let answered)? = later[2] else { return XCTFail("a reply to a later one answers the post") }
+        XCTAssertEqual(answered.map(\.replyTo), [nil, nil, nil])
+        guard case .failure? = later[3] else { return XCTFail("fewer than half is never enough") }
+    }
+
     func testAnAnswerThatIsNotJSONIsSaid() {
         let checked = ContentCheck.records(Data("Here are your posts!".utf8), ask: ask, count: 2, taken: [])
         XCTAssertEqual(checked.problems, ["the answer was not the JSON object asked for"])

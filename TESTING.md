@@ -47,7 +47,32 @@ comment counts that agree with the threads.*
    model (word lists); `swift test` of each: MastodonKit 23 tests and RecipeKit 21, 0 failures, their mock tests among
    them.
 
-## Not run here
+## Prompts run on this Mac
 
-The agent is not installed in Craft by this work, so no prompt has been run through Craft's own model yet; the
-scripted model stands in for it, and the prompts it builds are pinned by `ModelWriterTests`.
+Setup: MacBook Pro M4 Max (128 GB), macOS 27, Xcode 27.1, Craft built from `main`, the model Craft loads
+(`rao-studios/Qwen3-Coder-Next-REAP-48B-A3B-mlx-4bit`), permission mode bypass, the agent installed from this repository
+with `craft agents add`. The app is Hearth, made over earlier prompts by `$granite`, `$design`, `$assets` and
+`$network` (its client package `Packages/HearthKit`); each prompt below runs on the app as those left it.
+
+### 1. Hearth's mock backend, first try: the model never called mocks (the journey's fifth prompt, b2febe5)
+
+*2026-11-01 · Qwen3-Coder-Next-REAP-48B-A3B-mlx-4bit · 912 s*
+
+**The prompt**, verbatim:
+
+```text
+Hearth has no server yet, so give HearthKit believable mock data with $mocks: a cozy recipe-sharing community where home cooks post weeknight dinners, bakes, ferments and soups, with friendly comment threads. Make it about 40 posts across 8 communities and a lively set of comments, so the app runs on it until the server exists.
+```
+
+**What the model changed itself**: `Packages/HearthKit/Mock/MockResponses.swift`, `Packages/HearthKit/Sources/HearthKit/Mock/MockServer.swift`
+
+**Verified by hand**:
+- `mocks` was never called. The macOS scheme fails to build: `MockServer.swift:145:44: Consecutive statements on a line must be separated by ';'`.
+
+![The turn as Craft logged it: no call to mocks, two files the model wrote itself, a build that fails](Docs/Testing/1-5a-mocks.png)
+*The turn as Craft logged it: no call to mocks, two files the model wrote itself, a build that fails*
+
+**Notes**:
+- Craft found `$mocks` (the mentions card says it is required) and put this agent's guide in the turn's prompt. The sketch then planned to write a mock server by hand ("implement $mocks tag to switch NetworkClient to mock mode"), and the model followed it: 25 reads of HearthKit, then a shell agent that wrote `Mock/MockServer.swift` and `Mock/MockResponses.swift`.
+- Craft stopped the turn when the model's 64k context filled. Its hold for a required agent acts only on a reply that ends the turn, so it never asked for the call.
+- Fixed here in 54c755c: the guide says to call mocks before reading the package, because it reads the api.json, the models and the client itself; a call needs only `theme`. The app was put back to the fourth prompt's commit and the same prompt run again (entry 2).

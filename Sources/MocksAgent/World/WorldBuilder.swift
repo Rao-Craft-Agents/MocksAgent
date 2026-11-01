@@ -126,8 +126,10 @@ struct WorldBuilder {
         let fields = askFields(type, part: part)
         let groups = part == .content ? groupsFor(type) : []
         var contents: [[String: JSONValue]] = []
-        var taken: [String] = []
+        var taken: [String] = [], handles: [String] = []
         let size = part == .person ? 10 : part == .group ? 8 : part == .content ? 6 : 8
+        // Content people discuss (posted in a group, or answered) reads like a feed: each record a different angle.
+        let discussed = part == .content && (!groups.isEmpty || shape.children.values.contains(type))
         while contents.count < count {
             let wanted = min(size, count - contents.count)
             var ask = RecordAsk(type: type, plural: Self.plural(type, shape: shape), about: shape.entity(type)?.doc, fields: fields,
@@ -135,13 +137,19 @@ struct WorldBuilder {
             ask.groups = groups
             ask.groupNoun = groups.isEmpty ? "group" : SwiftName.words(groupType(for: type) ?? "group")
             ask.taken = taken
+            ask.handles = handles
             ask.start = contents.count
+            if discussed {
+                ask.angles = (0..<wanted).map { ContentPrompt.angles[(contents.count + $0) % ContentPrompt.angles.count] }
+            }
             let answer = fields.isEmpty && groups.isEmpty ? Array(repeating: [:], count: wanted) : try await writer.records(ask)
             let kept = Array(answer.prefix(wanted))
             contents += kept
             for item in kept {
                 for field in fields where field.role == .handle || field.role == .title {
-                    if case .string(let text)? = item[field.name] { taken.append(text) }
+                    guard case .string(let text)? = item[field.name] else { continue }
+                    taken.append(text)
+                    if field.role == .handle { handles.append(text) }
                 }
             }
             if kept.isEmpty { break }
@@ -377,7 +385,7 @@ struct WorldBuilder {
             case .displayName:
                 note = "the name they go by: a real-sounding full name or a nickname"
             case .title:
-                note = part == .group ? "the \(noun)'s name as shown: one to four words"
+                note = part == .group ? "the \(noun)'s name as shown: one to four plain words its members would look for, never a pun"
                     : part == .person ? "their name" : "its title as a person would write it, 15 to 90 characters"
             case .body(let format):
                 let form = format == .markdown ? ", in Markdown: one to four short paragraphs, sometimes a list or **bold**"

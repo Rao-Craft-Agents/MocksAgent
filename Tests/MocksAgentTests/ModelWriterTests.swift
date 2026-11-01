@@ -41,6 +41,34 @@ final class ModelWriterTests: XCTestCase {
         XCTAssertFalse(system.contains("Kimchi") || system.contains("sourdough"), "never the app's own words")
     }
 
+    /// Posts people discuss: each one an angle, a rule for titles, and only the handles taken are shown, never the
+    /// titles (a model shown them writes variations: "…, Again", "#58"); a taken title is still refused.
+    func testAPostsAskShowsAnglesAndHandlesButNeverTheTitlesTaken() async throws {
+        var posts = RecordAsk(type: "Post", plural: "posts", about: nil, fields: [
+            AskField(name: "name", kind: .string, optional: false, role: .title, note: "its title"),
+        ], count: 2, part: .content)
+        posts.groups = [("baking", "Baking")]
+        posts.groupNoun = "community"
+        posts.taken = ["maya_bakes", "Brown butter cookies"]
+        posts.handles = ["maya_bakes"]
+        posts.angles = Array(ContentPrompt.angles.prefix(2))
+        let model = FakeHostModel(replies: [
+            #"{"posts": [{"name": "Leek soup for a cold night", "community": "baking"}, {"name": "Brown butter cookies", "community": "baking"}]}"#,
+            #"{"posts": [{"name": "Is a dutch oven worth it?", "community": "baking"}]}"#,
+        ])
+        var writer = ModelWriter(model: model, theme: Theme(Kitchen.theme, package: "Lemmy"), rounds: 3, seed: 1, note: { _ in })
+        let records = try await writer.records(posts)
+        XCTAssertEqual(records.map { $0["name"]?.text }, ["Leek soup for a cold night", "Is a dutch oven worth it?"])
+        let first = model.asked[0].user
+        XCTAssertTrue(first.contains("1. showing something they made or did") && first.contains("2. a question for the others"), first)
+        XCTAssertTrue(first.contains("never the community's name, never numbered like a series"), first)
+        XCTAssertTrue(first.contains("Handles already taken, never use again: maya_bakes"), first)
+        XCTAssertFalse(first.contains("Brown butter cookies"), "a title taken is checked, never shown")
+        let again = model.asked[1].user
+        XCTAssertTrue(again.contains("1. a question for the others") && !again.contains("2. "), "the angle still wanted: \(again)")
+        XCTAssertFalse(again.contains("Leek soup"), "nor a title this call took: \(again)")
+    }
+
     func testWordListsWriteWhatTheRoundsCouldNot() async throws {
         let model = FakeHostModel(replies: [#"{"people": [{"name": "Sample name"}]}"#])
         var writer = ModelWriter(model: model, theme: Theme("a book club", package: "Books"), rounds: 2, seed: 1, note: { _ in })
@@ -67,6 +95,10 @@ final class ModelWriterTests: XCTestCase {
         XCTAssertFalse(posts.contains("\"bread\""), "a community that does not exist never lands")
         let comments = try String(contentsOf: package.appendingPathComponent("Sources/LemmyKit/Mocks/Fixtures/CommentsFixture.swift"), encoding: .utf8)
         XCTAssertTrue(comments.contains("Saving this for the weekend") || comments.contains("What temperature did you use?"))
+        let postAsks = model.asked.filter { $0.user.contains("Answer {\"posts\"") }
+        XCTAssertFalse(postAsks.isEmpty)
+        XCTAssertTrue(postAsks.allSatisfy { $0.user.contains("What each one is, in order:") }, "posts people answer come with angles")
+        XCTAssertFalse(model.asked.contains { $0.user.contains("Answer {\"people\"") && $0.user.contains("What each one is") }, "people do not")
         let retry = try XCTUnwrap(model.asked.first { $0.user.contains("came back wrong") })
         XCTAssertTrue(retry.user.contains("is missing") && retry.user.contains("\"bread\""), retry.user)
     }
