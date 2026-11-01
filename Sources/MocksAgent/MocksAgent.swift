@@ -64,8 +64,9 @@ public struct MocksAgent: GraniteAgentPackage {
         that answers every endpoint in the process: people with handles and avatars, the groups they post in, posts \
         with titles and bodies in the app's voice, comment threads with depth, counts that agree, dates over the last \
         weeks, pictures drawn as soft gradients (served as data: URLs AsyncImage loads), lists that page and end, an \
-        item found by the id asked for, a body echoed back. Give `theme`, what the app is and how it sounds: the \
-        host's model writes what the records say from it, in small checked batches. Example: {"theme": "a cozy \
+        item found by the id asked for, a body echoed back. Call it before reading the package: it reads the \
+        api.json, the models and the client itself and names every file it wrote, so a call needs only `theme`, what \
+        the app is and how it sounds, which the host's model writes the records from in small checked batches. Example: {"theme": "a cozy \
         recipe-sharing community: home cooks posting weeknight dinners, bakes and ferments", "counts": ["posts: 40", \
         "comments: 120"]}. With two client packages, name one and the scenarios its tests prove: {"package": \
         "Packages/PantryKit", "theme": "a pantry tracker shared by housemates", "scenarios": ["normal", "empty", \
