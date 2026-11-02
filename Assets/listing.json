@@ -1,0 +1,19 @@
+{
+  "name": "Mocks",
+  "tagline": "Believable mock backend data for an app's API, so its screens, previews and tests run with no server.",
+  "category": "developer",
+  "keywords": [
+    "swift",
+    "mocks",
+    "fixtures",
+    "previews",
+    "testing",
+    "swiftui",
+    "granite",
+    "loom"
+  ],
+  "platforms": [
+    "macOS 14"
+  ],
+  "license": "MIT"
+}
