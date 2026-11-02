@@ -231,6 +231,19 @@ struct WorldBuilder {
 
     // MARK: - Replies
 
+    /// Who answers whom in a thread of `count` replies: nil answers the record, an index an earlier reply. About half
+    /// answer another, most often the one just before; a thread of four or more holds a reply to a reply to a reply.
+    static func thread(_ count: Int, random: inout Seeded) -> [Int?] {
+        var shape: [Int?] = []
+        for index in 0..<count {
+            guard index > 0, random.chance(0.5) else { shape.append(nil); continue }
+            shape.append(random.chance(0.6) ? index - 1 : random.int(0...(index - 1)))
+        }
+        let deep = shape.contains { answered in answered.map { shape[$0] != nil } ?? false }
+        if count >= 4, !deep { shape[1] = 0; shape[2] = 1 }
+        return shape
+    }
+
     private mutating func makeReplies<W: ContentWriter>(_ type: String, owner: String, total: Int, writer: inout W) async throws {
         let owners = world.all(owner)
         guard !owners.isEmpty else { world.records[type] = []; return }
@@ -251,11 +264,13 @@ struct WorldBuilder {
         var made: [World.Record] = []
         for batch in batches {
             try Task.checkCancellation()
-            let parents = batch.enumerated().map { number, index in
-                ThreadAsk.Parent(number: number + 1, title: owners[index].title ?? "",
-                                 body: Self.excerpt(owners[index], shape: shape),
-                                 author: owners[index].author.flatMap { persons.indices.contains($0) ? persons[$0].handle : nil } ?? "someone",
-                                 count: allotted[index])
+            var parents: [ThreadAsk.Parent] = []
+            for (number, index) in batch.enumerated() {
+                parents.append(ThreadAsk.Parent(number: number + 1, title: owners[index].title ?? "",
+                                                body: Self.excerpt(owners[index], shape: shape),
+                                                author: owners[index].author.flatMap { persons.indices.contains($0) ? persons[$0].handle : nil } ?? "someone",
+                                                count: allotted[index],
+                                                shape: threaded ? Self.thread(allotted[index], random: &random) : []))
             }
             let ask = ThreadAsk(parents: parents, field: field, threaded: threaded, noun: SwiftName.words(type),
                                 parentNoun: SwiftName.words(owner))

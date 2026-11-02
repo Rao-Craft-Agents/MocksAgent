@@ -91,8 +91,7 @@ struct ModelWriter: ContentWriter {
                 let data = try await model.object(schema: ContentPrompt.threadsSchema(ask), system: system, user: user,
                                                   maxTokens: maxTokens, seconds: 60 + Double(maxTokens) / 25)
                 problems = []
-                // The first answer is held to the depth asked for; a later one is taken as it reads.
-                for (number, result) in ContentCheck.threads(data, ask: ask, parents: pending, strict: round == 1) {
+                for (number, result) in ContentCheck.threads(data, ask: ask, parents: pending) {
                     switch result {
                     case .success(let lines): done[number] = lines
                     case .failure(let failure): problems.append(failure.reason)

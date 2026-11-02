@@ -99,6 +99,9 @@ final class ModelWriterTests: XCTestCase {
         XCTAssertFalse(postAsks.isEmpty)
         XCTAssertTrue(postAsks.allSatisfy { $0.user.contains("What each one is, in order:") }, "posts people answer come with angles")
         XCTAssertFalse(model.asked.contains { $0.user.contains("Answer {\"people\"") && $0.user.contains("What each one is") }, "people do not")
+        let threadAsk = try XCTUnwrap(model.asked.first { $0.user.contains("Answer {\"threads\"") })
+        XCTAssertTrue(threadAsk.user.contains("1 answers the post"), "the model is told who answers whom: \(threadAsk.user)")
+        XCTAssertFalse(String(decoding: threadAsk.schema, as: UTF8.self).contains("replyTo"), "and never asked for it")
         let retry = try XCTUnwrap(model.asked.first { $0.user.contains("came back wrong") })
         XCTAssertTrue(retry.user.contains("is missing") && retry.user.contains("\"bread\""), retry.user)
     }

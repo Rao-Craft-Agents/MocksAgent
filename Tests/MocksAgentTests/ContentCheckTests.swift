@@ -51,62 +51,52 @@ final class ContentCheckTests: XCTestCase {
         XCTAssertTrue(checked.problems.contains { $0.contains("\"maya_bakes\" is already taken") }, "\(checked.problems)")
     }
 
-    func testAThreadAnswersEarlierRepliesWithDepth() {
+    /// A reply answers what the agent's shape says, whatever the model wrote; half the replies asked for are enough,
+    /// never fewer; a reply that says nothing, reads as a placeholder or repeats another is refused.
+    func testAThreadTakesItsShapeFromTheAgent() {
         let field = AskField(name: "content", kind: .string, optional: false, role: .body(.plain), note: "what it says")
-        let parents = [ThreadAsk.Parent(number: 1, title: "Soup", body: nil, author: "maya", count: 4),
-                       ThreadAsk.Parent(number: 2, title: "Bread", body: nil, author: "theo", count: 4),
-                       ThreadAsk.Parent(number: 3, title: "Cake", body: nil, author: "ines", count: 3)]
+        let parents = [ThreadAsk.Parent(number: 1, title: "Soup", body: nil, author: "maya", count: 4, shape: [nil, 0, 1, nil]),
+                       ThreadAsk.Parent(number: 2, title: "Bread", body: nil, author: "theo", count: 5, shape: [nil, 0, 1, nil, 3]),
+                       ThreadAsk.Parent(number: 3, title: "Cake", body: nil, author: "ines", count: 6, shape: [nil, nil, 1, 2, nil, 0]),
+                       ThreadAsk.Parent(number: 4, title: "Kimchi", body: nil, author: "ruth", count: 2, shape: [nil, 0]),
+                       ThreadAsk.Parent(number: 5, title: "Pie", body: nil, author: "sam", count: 2, shape: [nil, 0])]
         let ask = ThreadAsk(parents: parents, field: field, threaded: true, noun: "comment", parentNoun: "post")
         let answer = #"""
         {"threads": [
-          {"post": 1, "comments": [{"id": 1, "replyTo": null, "text": "Lovely."}, {"id": 2, "replyTo": 1, "text": "Agreed!"},
-                                   {"id": 3, "replyTo": 2, "text": "Same."}, {"id": 4, "replyTo": null, "text": "What stock?"}]},
-          {"post": 2, "comments": [{"id": 1, "replyTo": null, "text": "Crumb!"}, {"id": 2, "replyTo": 1, "text": "Thanks."},
-                                   {"id": 3, "replyTo": null, "text": "Flour?"}, {"id": 4, "replyTo": 3, "text": "Bread flour."}]},
-          {"post": 3, "comments": [{"id": 1, "replyTo": 3, "text": "Yum."}, {"id": 2, "replyTo": null, "text": "Recipe?"}, {"id": 3, "replyTo": null, "text": "Saved."}]}
+          {"post": 1, "comments": [{"id": 1, "replyTo": 3, "text": "Lovely."}, {"id": 2, "text": "Agreed!"},
+                                   {"id": 3, "text": "Same."}, {"id": 4, "text": "What stock?"}]},
+          {"post": 2, "comments": [{"id": 1, "text": "Crumb!"}, {"id": 2, "text": "Thanks."}, {"id": 3, "text": "Flour?"}]},
+          {"post": 3, "comments": [{"id": 1, "text": "Yum."}, {"id": 2, "text": "Recipe?"}]},
+          {"post": 4, "comments": [{"id": 1, "text": "Saved."}, {"id": 2, "text": "saved."}]},
+          {"post": 5, "comments": [{"id": 1, "text": "Lorem ipsum dolor."}, {"id": 2, "text": "Nice."}]}
         ]}
         """#
         let threads = ContentCheck.threads(Data(answer.utf8), ask: ask, parents: parents)
         guard case .success(let first)? = threads[1] else { return XCTFail("thread 1 passes") }
-        XCTAssertEqual(first.map(\.replyTo), [nil, 0, 1, nil])
-        guard case .failure(let shallow)? = threads[2] else { return XCTFail("thread 2 has no depth") }
-        XCTAssertTrue(shallow.reason.contains("give the thread depth"), shallow.reason)
-        guard case .failure(let forward)? = threads[3] else { return XCTFail("thread 3 answers a later reply") }
-        XCTAssertTrue(forward.reason.contains("not an earlier reply's id"), forward.reason)
+        XCTAssertEqual(first.map(\.replyTo), [nil, 0, 1, nil], "the agent's shape, not the model's replyTo")
+        guard case .success(let three)? = threads[2] else { return XCTFail("3 of 5 is enough") }
+        XCTAssertEqual(three.map(\.replyTo), [nil, 0, 1])
+        guard case .failure(let short)? = threads[3] else { return XCTFail("2 of 6 is fewer than half") }
+        XCTAssertTrue(short.reason.contains("it has 2 replies, and 6 were asked for"), short.reason)
+        guard case .failure(let twice)? = threads[4] else { return XCTFail("a reply said twice") }
+        XCTAssertTrue(twice.reason.contains("two replies say the same thing"), twice.reason)
+        guard case .failure(let filler)? = threads[5] else { return XCTFail("a placeholder") }
+        XCTAssertTrue(filler.reason.contains("placeholder"), filler.reason)
     }
 
-    /// A first answer is held to the depth and order asked for; a later one is taken as it reads (no depth asked for,
-    /// a reply to nothing earlier answers the post). In either, half the replies asked for are enough, never fewer.
-    func testALaterAnswerIsTakenAsItReads() {
-        let field = AskField(name: "content", kind: .string, optional: false, role: .body(.plain), note: "what it says")
-        let parents = [ThreadAsk.Parent(number: 1, title: "Bread", body: nil, author: "theo", count: 4),
-                       ThreadAsk.Parent(number: 2, title: "Cake", body: nil, author: "ines", count: 3),
-                       ThreadAsk.Parent(number: 3, title: "Soup", body: nil, author: "maya", count: 6),
-                       ThreadAsk.Parent(number: 4, title: "Kimchi", body: nil, author: "ruth", count: 5)]
-        let ask = ThreadAsk(parents: parents, field: field, threaded: true, noun: "comment", parentNoun: "post")
-        let answer = #"""
-        {"threads": [
-          {"post": 1, "comments": [{"id": 1, "replyTo": null, "text": "Crumb!"}, {"id": 2, "replyTo": 1, "text": "Thanks."},
-                                   {"id": 3, "replyTo": null, "text": "Flour?"}, {"id": 4, "replyTo": 3, "text": "Bread flour."}]},
-          {"post": 2, "comments": [{"id": 1, "replyTo": 3, "text": "Yum."}, {"id": 2, "replyTo": null, "text": "Recipe?"}, {"id": 3, "replyTo": null, "text": "Saved."}]},
-          {"post": 3, "comments": [{"id": 1, "replyTo": null, "text": "Lovely."}, {"id": 2, "replyTo": 1, "text": "Agreed!"}]},
-          {"post": 4, "comments": [{"id": 1, "replyTo": null, "text": "How long?"}, {"id": 2, "replyTo": 1, "text": "Three days."},
-                                   {"id": 3, "replyTo": 2, "text": "Even in summer?"}]}
-        ]}
-        """#
-        let strict = ContentCheck.threads(Data(answer.utf8), ask: ask, parents: parents)
-        guard case .failure? = strict[1], case .failure? = strict[2] else { return XCTFail("a first answer is held to depth and order") }
-        guard case .failure(let short)? = strict[3] else { return XCTFail("2 of 6 is fewer than half") }
-        XCTAssertTrue(short.reason.contains("it has 2 replies, and 6 were asked for"), short.reason)
-        guard case .success(let three)? = strict[4] else { return XCTFail("3 of 5 is enough") }
-        XCTAssertEqual(three.map(\.replyTo), [nil, 0, 1])
-
-        let later = ContentCheck.threads(Data(answer.utf8), ask: ask, parents: parents, strict: false)
-        guard case .success(let flat)? = later[1] else { return XCTFail("a thread with no depth is taken later") }
-        XCTAssertEqual(flat.map(\.replyTo), [nil, 0, nil, 2])
-        guard case .success(let answered)? = later[2] else { return XCTFail("a reply to a later one answers the post") }
-        XCTAssertEqual(answered.map(\.replyTo), [nil, nil, nil])
-        guard case .failure? = later[3] else { return XCTFail("fewer than half is never enough") }
+    /// The model is told who answers whom; a thread of four or more the agent shapes holds a reply to a reply to a reply.
+    func testTheAgentShapesEveryThread() {
+        var random = Seeded(7)
+        for count in 1...12 {
+            for _ in 0..<20 {
+                let shape = WorldBuilder.thread(count, random: &random)
+                XCTAssertEqual(shape.count, count)
+                XCTAssertNil(shape.first ?? nil, "the first reply answers the record")
+                for (index, answered) in shape.enumerated() { if let answered { XCTAssertLessThan(answered, index) } }
+                if count >= 4 { XCTAssertTrue(shape.contains { $0.map { shape[$0] != nil } ?? false }, "depth in \(shape)") }
+            }
+        }
+        XCTAssertEqual(ContentPrompt.answers([nil, 0, 1, nil], record: "post"), "1 answers the post, 2 answers 1, 3 answers 2, 4 answers the post")
     }
 
     func testAnAnswerThatIsNotJSONIsSaid() {

@@ -12,6 +12,10 @@ struct ThreadAsk: Sendable {
         var author: String
         /// How many replies it gets.
         var count: Int
+        /// Who answers whom, one a reply in order: nil answers the record, an index an earlier reply. The agent's,
+        /// never the model's: a model asked for depth gives one level, and is asked again for it. Empty when
+        /// replies only answer the record.
+        var shape: [Int?] = []
     }
 
     var parents: [Parent]

@@ -1,7 +1,7 @@
 //  WHAT: A model's answer checked against the entity lines before a word of it lands: every field asked for, each of
 //        its type, a choice one of its cases, a handle unique and a handle, a title not given twice, a group one of
-//        the groups, nothing a placeholder; a thread's replies each answering the record or an earlier reply, with
-//        the depth asked for. What fails is said in a sentence the model can act on.
+//        the groups, nothing a placeholder; a thread's replies, at least half of them, each saying something new
+//        and answering what the agent's shape says. What fails is said in a sentence the model can act on.
 
 import Foundation
 
@@ -116,12 +116,9 @@ enum ContentCheck {
         init(_ reason: String) { self.reason = reason }
     }
 
-    /// The threads of an answer, by parent number: each a list of replies, or why it cannot be used.
-    ///
-    /// `strict`: a first answer must give a thread of four or more the depth asked for, and every reply it answers
-    /// must be an earlier one. A later answer is taken as it reads: no depth asked for, a reply that answers no earlier
-    /// one answers the record. Either way at least half the replies asked for, each saying something new.
-    static func threads(_ data: Data, ask: ThreadAsk, parents: [ThreadAsk.Parent], strict: Bool = true) -> [Int: Result<[ThreadLine], Failure>] {
+    /// The threads of an answer, by parent number: each a list of replies, or why it cannot be used. A reply answers
+    /// what the parent's shape says (the agent's); at least half the replies asked for, each saying something new.
+    static func threads(_ data: Data, ask: ThreadAsk, parents: [ThreadAsk.Parent]) -> [Int: Result<[ThreadLine], Failure>] {
         var out: [Int: Result<[ThreadLine], Failure>] = [:]
         guard let answer = JSONValue.parse(data) else {
             for parent in parents { out[parent.number] = .failure(Failure("\(parent.number): the answer was not the JSON object asked for")) }
@@ -134,37 +131,25 @@ enum ContentCheck {
                 ?? (position < threads.count && member(threads[position], parentKey) == nil ? threads[position] : nil)
             guard let thread else { out[parent.number] = .failure(Failure("\(parent.number): its thread is missing")); continue }
             let replies = list(in: thread, key: repliesKey)
-            out[parent.number] = lines(replies, parent: parent, threaded: ask.threaded, strict: strict)
+            out[parent.number] = lines(replies, parent: parent)
         }
         return out
     }
 
-    private static func lines(_ replies: [JSONValue], parent: ThreadAsk.Parent, threaded: Bool, strict: Bool) -> Result<[ThreadLine], Failure> {
+    private static func lines(_ replies: [JSONValue], parent: ThreadAsk.Parent) -> Result<[ThreadLine], Failure> {
         let number = parent.number
-        // Fewer replies than asked for are fine: the counts follow the replies there are.
+        // Fewer replies than asked for are fine: the counts follow the replies there are, and a shape's first replies
+        // answer only replies before them.
         guard replies.count >= max(1, (parent.count + 1) / 2) else {
             return .failure(Failure("\(number): it has \(replies.count) replies, and \(parent.count) were asked for"))
         }
-        var ids: [String: Int] = [:], lines: [ThreadLine] = [], seen: Set<String> = []
+        var lines: [ThreadLine] = [], seen: Set<String> = []
         for (index, reply) in replies.prefix(parent.count).enumerated() {
             guard let text = (member(reply, "text") ?? member(reply, "content") ?? member(reply, "body"))?.text?.trimmingCharacters(in: .whitespacesAndNewlines),
                   !text.isEmpty else { return .failure(Failure("\(number): reply \(index + 1) says nothing")) }
             if let placeholder = placeholder(text) { return .failure(Failure("\(number): reply \(index + 1) reads as a placeholder (\(placeholder))")) }
             if !seen.insert(text.lowercased()).inserted { return .failure(Failure("\(number): two replies say the same thing")) }
-            var replyTo: Int?
-            if threaded, let target = member(reply, "replyTo") ?? member(reply, "reply_to"), !target.isNull {
-                if let key = target.text, let earlier = ids[key] {
-                    replyTo = earlier
-                } else if strict {
-                    return .failure(Failure("\(number): reply \(index + 1) answers \(target.compact), which is not an earlier reply's id"))
-                }
-            }
-            ids[member(reply, "id")?.text ?? String(index + 1)] = index
-            lines.append(ThreadLine(replyTo: replyTo, text: text))
-        }
-        if threaded, strict, lines.count >= 4 {
-            let deep = lines.contains { line in line.replyTo.map { lines[$0].replyTo != nil } ?? false }
-            if !deep { return .failure(Failure("\(number): no reply answers a reply to a reply; give the thread depth")) }
+            lines.append(ThreadLine(replyTo: index < parent.shape.count ? parent.shape[index] : nil, text: text))
         }
         return .success(lines)
     }

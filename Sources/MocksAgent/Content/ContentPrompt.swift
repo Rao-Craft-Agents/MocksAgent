@@ -32,27 +32,29 @@ enum ContentPrompt {
 
     static func threadsSystem(_ theme: Theme, ask: ThreadAsk) -> String {
         let example = theme.domain == .food ? runningExample : recipeExample
-        let depth = ask.threaded ? "\n- In a thread of four or more, at least one reply answers a reply that itself answers a reply, so the thread has depth." : ""
+        let answers = ask.threaded ? "what it is said to answer, the record or an earlier reply by its number" : "the record"
         return """
-        You write the replies under a few records of an app's mock backend, so each thread reads like a real conversation in the app's own voice. You answer with one JSON object, {"threads": [...]}: one thread for each record asked about, each with exactly the number of replies asked for.
+        You write the replies under a few records of an app's mock backend, so each thread reads like a real conversation in the app's own voice. You answer with one JSON object, {"threads": [...]}: one thread for each record asked about, each with exactly the replies asked for, in order.
 
         How a thread reads:
-        - Each reply answers the record (replyTo null)\(ask.threaded ? " or an earlier reply (replyTo its id)" : ""): a question gets an answer, the one who posted thanks someone, two people politely disagree, someone adds a tip.\(depth)
+        - Each reply answers \(answers): a question gets an answer, the one who posted thanks someone, two people politely disagree, someone adds a tip.
         - Short ones ("Saving this for Sunday.") beside longer ones; never the same opening twice, never "Great post!".
         - Never "Sample", "Lorem ipsum", "Test", a placeholder, or a word about the content being mock or generated.
 
-        An example from \(example.app), the replies under one of its posts, answered as {"threads": [{"post": 1, "replies": [...]}]}:
+        An example from \(example.app), the replies under one of its posts (\(example.shape)), answered as {"threads": [{"post": 1, "replies": [...]}]}:
         \(example.thread)
         """
     }
 
     private static let recipeExample = (app: "a recipe app",
         records: #"{"members": [{"handle": "saltandsimmer", "name": "Ines Moreau", "bio": "Cooking my way through my grandmother's notebook."}, {"handle": "pho_kevin", "name": "Kevin Tran", "bio": null}, {"handle": "doughdaily", "name": "Ruth Achterberg", "bio": "Bread most days. Cake when it's earned."}]}"#,
-        thread: #"{"threads": [{"post": 1, "replies": [{"id": 1, "replyTo": null, "text": "Did you salt the eggplant first? Mine always goes soggy."}, {"id": 2, "replyTo": 1, "text": "Twenty minutes in a colander with a good pinch of salt, then pat it dry. Makes all the difference."}, {"id": 3, "replyTo": 2, "text": "Trying that tonight, thank you!"}, {"id": 4, "replyTo": null, "text": "Saving this for Sunday."}]}]}"#)
+        shape: "1 answers the post, 2 answers 1, 3 answers 2, 4 answers the post",
+        thread: #"{"threads": [{"post": 1, "replies": [{"id": 1, "text": "Did you salt the eggplant first? Mine always goes soggy."}, {"id": 2, "text": "Twenty minutes in a colander with a good pinch of salt, then pat it dry. Makes all the difference."}, {"id": 3, "text": "Trying that tonight, thank you!"}, {"id": 4, "text": "Saving this for Sunday."}]}]}"#)
 
     private static let runningExample = (app: "a trail-running club's app",
         records: #"{"members": [{"handle": "ridgeline_rae", "name": "Rae Lindqvist", "bio": "Slow miles, long views."}, {"handle": "mudandmiles", "name": "Omar Haddad", "bio": null}, {"handle": "kestrel_runs", "name": "Hana Sato", "bio": "Training for my first fifty. Send snacks."}]}"#,
-        thread: #"{"threads": [{"post": 1, "replies": [{"id": 1, "replyTo": null, "text": "Was the creek crossing passable after Thursday's rain?"}, {"id": 2, "replyTo": 1, "text": "Knee deep at the second ford, but the rope is still up."}, {"id": 3, "replyTo": 2, "text": "Good to know, I'll bring dry socks."}, {"id": 4, "replyTo": null, "text": "That view from the saddle never gets old."}]}]}"#)
+        shape: "1 answers the post, 2 answers 1, 3 answers 2, 4 answers the post",
+        thread: #"{"threads": [{"post": 1, "replies": [{"id": 1, "text": "Was the creek crossing passable after Thursday's rain?"}, {"id": 2, "text": "Knee deep at the second ford, but the rope is still up."}, {"id": 3, "text": "Good to know, I'll bring dry socks."}, {"id": 4, "text": "That view from the saddle never gets old."}]}]}"#)
 
     // MARK: - Records
 
@@ -142,20 +144,28 @@ enum ContentPrompt {
             var line = "\(parent.number). \"\(parent.title)\" by \(parent.author)"
             if let body = parent.body, !body.isEmpty { line += ": " + body.replacingOccurrences(of: "\n", with: " ") }
             line += "\n   \(parent.count) \(parent.count == 1 ? ask.noun : SwiftName.plural(ask.noun))"
+            if parent.shape.contains(where: { $0 != nil }) { line += "\n   " + answers(parent.shape, record: ask.parentNoun) }
             parts.append(line)
         }
         if !problems.isEmpty { parts.append("What was wrong:\n" + problems.map { "- \($0)" }.joined(separator: "\n")) }
         let numbers = parents.map { String($0.number) }.joined(separator: ", ")
-        parts.append("Answer {\"threads\": [{\"\(parentKey)\": <number>, \"\(replies)\": [{\"id\": 1, \"replyTo\": null, \"text\": \"...\"}, ...]}, ...]}, one thread for each of \(numbers).")
+        parts.append("Answer {\"threads\": [{\"\(parentKey)\": <number>, \"\(replies)\": [{\"id\": 1, \"text\": \"...\"}, ...]}, ...]}, one thread for each of \(numbers).")
         return parts.joined(separator: "\n\n")
+    }
+
+    /// Who answers whom, as the model is told it: "1 answers the post, 2 answers 1, 3 answers the post".
+    static func answers(_ shape: [Int?], record: String) -> String {
+        shape.enumerated().map { index, answered in
+            "\(index + 1) answers " + (answered.map { String($0 + 1) } ?? "the \(record)")
+        }.joined(separator: ", ")
     }
 
     static func repliesKey(_ ask: ThreadAsk) -> String { SwiftName.plural(SwiftName.lowerCamel(SwiftName.upperCamel(ask.noun.replacingOccurrences(of: " ", with: "_")))) }
     static func parentKey(_ ask: ThreadAsk) -> String { SwiftName.lowerCamel(SwiftName.upperCamel(ask.parentNoun.replacingOccurrences(of: " ", with: "_"))) }
 
     static func threadsSchema(_ ask: ThreadAsk) -> Data {
-        let reply: [String: Any] = ["type": "object", "required": ["id", "replyTo", "text"],
-                                    "properties": ["id": ["type": "integer"], "replyTo": ["type": ["integer", "null"]], "text": ["type": "string"]]]
+        let reply: [String: Any] = ["type": "object", "required": ["id", "text"],
+                                    "properties": ["id": ["type": "integer"], "text": ["type": "string"]]]
         let thread: [String: Any] = ["type": "object", "required": [parentKey(ask), repliesKey(ask)],
                                      "properties": [parentKey(ask): ["type": "integer"], repliesKey(ask): ["type": "array", "items": reply]]]
         let answer: [String: Any] = ["type": "object", "required": ["threads"], "properties": ["threads": ["type": "array", "items": thread]]]

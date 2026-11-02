@@ -78,7 +78,7 @@ struct WordWriter: ContentWriter {
         return ask.parents.map { parent in
             var lines: [ThreadLine] = []
             for index in 0..<parent.count {
-                let answers = ask.threaded && index > 0 && random.chance(0.55) ? random.int(0...(index - 1)) : nil
+                let answers = index < parent.shape.count ? parent.shape[index] : nil
                 let text = answers == nil ? random.pick(place.replies + place.sentences) : random.pick(place.replies)
                 lines.append(ThreadLine(replyTo: answers, text: text))
             }
