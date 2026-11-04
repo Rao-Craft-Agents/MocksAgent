@@ -1,0 +1,110 @@
+{
+  "agent": {
+    "word": "mocks"
+  },
+  "asks": {
+    "asked": 30,
+    "retried": 7
+  },
+  "client": "MarginClient",
+  "endpoints": [
+    "communities",
+    "community",
+    "posts",
+    "post",
+    "comments",
+    "user",
+    "userPosts",
+    "createPost",
+    "createComment"
+  ],
+  "expected": [
+    {
+      "kind": "client",
+      "name": "MarginClient+Mock"
+    },
+    {
+      "kind": "fixture",
+      "name": "Community"
+    },
+    {
+      "kind": "fixture",
+      "name": "User"
+    },
+    {
+      "kind": "fixture",
+      "name": "Post"
+    },
+    {
+      "kind": "fixture",
+      "name": "Comment"
+    }
+  ],
+  "format": "granite-answer/1",
+  "images": 18,
+  "made": [
+    {
+      "kind": "client",
+      "name": "MarginClient+Mock",
+      "path": "Packages/MarginKit/Sources/MarginKit/Mocks/MarginClient+Mock.swift",
+      "state": "written"
+    },
+    {
+      "kind": "fixture",
+      "name": "Community",
+      "path": "Packages/MarginKit/mocks.json",
+      "state": "written"
+    },
+    {
+      "kind": "fixture",
+      "name": "User",
+      "path": "Packages/MarginKit/Sources/MarginKit/Mocks/Fixtures/UserFixture.swift",
+      "state": "written"
+    },
+    {
+      "kind": "fixture",
+      "name": "Post",
+      "path": "Packages/MarginKit/Sources/MarginKit/Mocks/Fixtures/PostsFixture.swift",
+      "state": "written"
+    },
+    {
+      "kind": "fixture",
+      "name": "Comment",
+      "path": "Packages/MarginKit/Sources/MarginKit/Mocks/Fixtures/CommentsFixture.swift",
+      "state": "written"
+    }
+  ],
+  "notes": [
+    "the host's model wrote what the records say, in 30 asks, 7 of them asked again"
+  ],
+  "package": "Packages/MarginKit",
+  "path": "Packages/MarginKit/Sources/MarginKit/Mocks/MarginClient+Mock.swift",
+  "paths": [
+    "Packages/MarginKit/Sources/MarginKit/Mocks/MockJSON.swift",
+    "Packages/MarginKit/Sources/MarginKit/Mocks/MockAnswer.swift",
+    "Packages/MarginKit/Sources/MarginKit/Mocks/MockRoute.swift",
+    "Packages/MarginKit/Sources/MarginKit/Mocks/MockServer.swift",
+    "Packages/MarginKit/Sources/MarginKit/Mocks/MockScenario.swift",
+    "Packages/MarginKit/Sources/MarginKit/Mocks/MockMode.swift",
+    "Packages/MarginKit/Sources/MarginKit/Mocks/MockImages.swift",
+    "Packages/MarginKit/Sources/MarginKit/Mocks/MockFixtures.swift",
+    "Packages/MarginKit/Sources/MarginKit/Mocks/MarginClient+Mock.swift",
+    "Packages/MarginKit/Sources/MarginKit/Mocks/Fixtures/CommunitiesFixture.swift",
+    "Packages/MarginKit/Sources/MarginKit/Mocks/Fixtures/PostsFixture.swift",
+    "Packages/MarginKit/Sources/MarginKit/Mocks/Fixtures/CommentsFixture.swift",
+    "Packages/MarginKit/Sources/MarginKit/Mocks/Fixtures/UserFixture.swift",
+    "Packages/MarginKit/Sources/MarginKit/Mocks/Fixtures/UserPostsFixture.swift",
+    "Packages/MarginKit/Sources/MarginKit/Mocks/Fixtures/CreatePostFixture.swift",
+    "Packages/MarginKit/Sources/MarginKit/Mocks/Fixtures/CreateCommentFixture.swift",
+    "Packages/MarginKit/Tests/MarginKitTests/MockFixtureTests.swift",
+    "Packages/MarginKit/mocks.json"
+  ],
+  "problems": [],
+  "records": {
+    "Comment": 120,
+    "Community": 6,
+    "Post": 40,
+    "User": 20
+  },
+  "written": true
+}

@@ -48,3 +48,40 @@ Setup: MacBook Pro M4 Max (128 GB), macOS 27, Xcode 27.1, Craft built from `main
 (`rao-studios/Qwen3-Coder-Next-REAP-48B-A3B-mlx-4bit`), permission mode bypass, the agent installed from this repository
 with `craft agents add`. The app is Hearth, made over earlier prompts by `$granite`, `$design`, `$assets` and
 `$network` (its client package `Packages/HearthKit`); each prompt below runs on the app as those left it.
+
+## Regime runs on Margin
+
+What this agent made in the regime's runs on Margin (`TESTING-REGIME.md`), written by `regime.sh publish` from each run's records: the call, what it made of what it expected, and what the run measured.
+
+### replay-2026-11-03-2-t1-2
+
+*2026-11-04 · Qwen3-Coder-Next-REAP-48B-A3B-mlx-4bit · baseline · expand on · 64k window · stage P0 · max_rows 4 · Craft 6e950df3619c+dirty (committed as a7bbf02) · Frigate c5b68d76f0b7 · granite 4210ca9 · loom bcf0c85 · mocks 3bea47d · network dbac458 · screenshots 22186ba · replay of turn 1 of 2026-11-03-2*
+
+**Calls** (made / refused / corrected): 1 / 0 / 0 · **made of expected**: 5 of 5 (100%) · **asks of the model**: 30 (15,864 tokens)
+
+**The call** (t1):
+
+```json
+{
+  "counts": [
+    "posts: 40",
+    "comments: 120",
+    "people: 20",
+    "communities: 6"
+  ],
+  "package": "Packages/MarginKit",
+  "scenarios": [
+    "normal",
+    "empty",
+    "failing",
+    "unauthorized",
+    "slow"
+  ],
+  "theme": "a book-reading community: readers sharing thoughts on books they are reading, with posts about chapters and comments that thread through discussions"
+}
+```
+
+**Its bars**: mocks_decodes pass (43/43) · mocks_counts pass ({'comments': 120, 'communities': 6, 'people': 20, 'posts': 40}) · mocks_stems pass (40) · mocks_threads pass (31) · feed_draws_light **fail** (0) · feed_draws_dark **fail** (0)
+
+![Outcome card for replay-2026-11-03-2-t1-2](Docs/Testing/l3-replay-2026-11-03-2-t1-2-card.png)
+*Outcome card for replay-2026-11-03-2-t1-2*

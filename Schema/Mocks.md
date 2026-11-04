@@ -10,6 +10,7 @@ mocks's own log.
 | --- | --- |
 | [`mocks.input.schema.json`](mocks.input.schema.json) | What it takes, as JSON Schema |
 | [`mocks.answer.schema.json`](mocks.answer.schema.json) | What it answers: `granite-answer/1` with its own kinds |
+| [`examples/mocks.answer.json`](examples/mocks.answer.json) | A real answer, from a regime run |
 
 ## What it takes
 
