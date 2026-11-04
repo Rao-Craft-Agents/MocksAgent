@@ -1,7 +1,17 @@
 import Foundation
+import GraniteAgents
 
 /// What a call can say instead of writing.
-public enum MocksError: Error, Equatable, CustomStringConvertible {
+public enum MocksError: Error, Equatable, CustomStringConvertible, AgentRefusing {
+    /// Each is the call's to fix: a line it cannot read, a count it cannot honour, a package it cannot find.
+    public var refusal: AgentRefusal {
+        switch self {
+        case .line(let line, let reason): return AgentRefusal(.call, "`\(line)`: \(reason)")
+        case .refused(let reasons): return AgentRefusal(.call, reasons)
+        case .noPackage(let reason): return AgentRefusal(.call, reason)
+        }
+    }
+
     /// A line that is not understood, and why.
     case line(String, String)
     /// Everything the call cannot honour, one sentence each, so all are fixed in one call.

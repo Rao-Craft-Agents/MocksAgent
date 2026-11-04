@@ -7,6 +7,7 @@
 //        naming /tmp/x no longer lies inside the /private/tmp/x the host gave; only `..` is ever resolved.
 
 import Foundation
+import GraniteAgents
 
 struct AgentFiles: Sendable {
     /// The folder the call works in: the host's, else the process's.
@@ -79,7 +80,14 @@ struct AgentFiles: Sendable {
     }
 }
 
-enum AgentFilesError: Error, Equatable, CustomStringConvertible {
+enum AgentFilesError: Error, Equatable, CustomStringConvertible, AgentRefusing {
+    var refusal: AgentRefusal {
+        switch self {
+        case .unparsed: return AgentRefusal(.parse, description)
+        case .unwritable: return AgentRefusal(.host, description)
+        }
+    }
+
     /// Swift that does not parse: the compiler's lines, naming each file as the project knows it.
     case unparsed(String)
     case unwritable(String)

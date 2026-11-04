@@ -55,20 +55,26 @@ struct MocksRun: Sendable {
         var builder = WorldBuilder(shape: shape, theme: theme, seed: seed, anchor: anchor, counts: counts)
         let world: World
         var written = false
+        var problems: [AgentProblem] = []
+        var asks: MocksResult.Asks?
         if let model = host.model {
             var writer = ModelWriter(model: model, theme: theme, rounds: min(max(input.rounds ?? 3, 1), 6), seed: seed, note: note)
             world = try await builder.build(&writer, note: note)
             written = true
             notes += writer.notes
+            // A record a word list wrote, after the model's answers did not pass, is a fallback the answer counts.
+            problems += writer.notes.filter { $0.contains("came from word lists") }.map { AgentProblem(kind: "fallback", text: $0) }
+            asks = MocksResult.Asks(asked: writer.asks, retried: writer.retries)
             notes.append("the host's model wrote what the records say, in \(writer.asks) ask\(writer.asks == 1 ? "" : "s")\(writer.retries > 0 ? ", \(writer.retries) of them asked again" : "")")
         } else {
             var writer = WordWriter(theme: theme, seed: seed)
             world = try await builder.build(&writer, note: note)
             notes.append("no model was offered, so the records say what word lists say; call again with the host's model for records in the app's own voice")
+            problems.append(AgentProblem(kind: "model", text: "no model was offered, so the records say what word lists say"))
         }
         if input.theme == nil, previous?.theme == nil { notes.append("no theme was given, so the records are a general community's; say `theme` for the app's own") }
         let records = Dictionary(uniqueKeysWithValues: builder.needed.map { ($0, world.count($0)) })
-        yield(.made(records: records, asks: 0))
+        yield(.made(records: records, asks: asks?.asked ?? 0))
 
         // Each endpoint's answer, the pictures, the files.
         let token = Self.token(api: api, shape: shape, world: world, seed: seed)
@@ -85,15 +91,35 @@ struct MocksRun: Sendable {
         let paths = try files.write(planned)
 
         // What an earlier call wrote and the mock no longer has.
+        var removed: [String] = []
         for old in previous?.files ?? [] where !kept.contains(old) {
             let url = folder.appendingPathComponent(old)
             guard url.path.hasPrefix(folder.path + "/"), (try? FileManager.default.removeItem(at: url)) != nil else { continue }
             notes.append("removed \(old), which the mock no longer has")
+            removed.append(url.path)
         }
         note("wrote \(paths.count) files into \(files.relative(folder))")
         let routes = folder.appendingPathComponent("Sources/\(api.module)/Mocks/\(api.client)+Mock.swift").path
-        return MocksResult(path: paths.first { $0 == routes } ?? paths.first, paths: paths, package: folder.path, client: api.client,
-                           endpoints: api.methods.map(\.name), records: records, images: images.count, written: written, notes: notes)
+        // What it was asked for: the client's mock, and each entity at its count. What it made: each of those it holds
+        // in full; an entity short of its count is a problem, not made.
+        let client = "\(api.client)+Mock"
+        var expected = [AgentExpected(kind: "client", name: client)]
+        var answered: [AgentMade] = paths.contains(routes) ? [AgentMade(kind: "client", name: client, path: routes, state: .written)] : []
+        let settings = folder.appendingPathComponent(MocksSettings.fileName).path
+        for type in builder.needed {
+            expected.append(AgentExpected(kind: "fixture", name: type))
+            let asked = builder.counts[type] ?? 0, held = records[type] ?? 0
+            guard held >= asked else {
+                problems.append(AgentProblem(kind: "short", text: "\(type): \(held) of the \(asked) asked for"))
+                continue
+            }
+            let file = paths.first { ($0 as NSString).lastPathComponent.lowercased().hasPrefix(type.lowercased()) } ?? settings
+            answered.append(AgentMade(kind: "fixture", name: type, path: paths.contains(file) ? file : nil, state: .written))
+        }
+        answered += removed.map { AgentMade(kind: "fixture", name: ($0 as NSString).lastPathComponent, path: $0, state: .removed) }
+        return MocksResult(path: paths.first { $0 == routes } ?? paths.first, paths: paths + removed, package: folder.path, client: api.client,
+                           endpoints: api.methods.map(\.name), records: records, images: images.count, written: written, notes: notes,
+                           made: answered, expected: expected, problems: problems, asks: asks)
     }
 
     /// The client package: the one named, else the only one under `Packages/` with an `api.json`, else the folder

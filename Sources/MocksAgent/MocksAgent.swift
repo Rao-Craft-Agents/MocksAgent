@@ -47,6 +47,14 @@ public struct MocksAgent: GraniteAgentPackage {
     public typealias Compute = Void
 
     public static let word = "mocks"
+    /// What it makes: the client's mock and its fixtures, inside the client package, and the tests that read them.
+    public static let makes = [
+        AgentMake(kind: "client", what: "the client's mock: `.mock()`, a transport that answers every endpoint in the process from fixtures",
+                  into: ["Packages/*/Sources/*/Mocks/*"], never: "the client itself, or the app's screens"),
+        AgentMake(kind: "fixture", what: "believable records the mock answers with: people, posts, threads, pictures, pages, scenarios that fail on purpose",
+                  into: ["Packages/*/Sources/*/Mocks/Fixtures/*", "Packages/*/mocks.json"]),
+        AgentMake(kind: "test", what: "tests that every fixture decodes as the client's types", into: ["Packages/*/Tests/*"]),
+    ]
     public static let summary = "writes realistic mock backend responses into an app's API client package — believable people, posts, threads, pictures and pages, scenarios that fail on purpose, and `.mock()` — so screens, previews and tests run with no server."
     public static let fields = [
         "package": "the client package's folder, relative to the project (`Packages/RecipeKit`); found by its api.json when left out",

@@ -63,6 +63,17 @@ final class MocksAgentTests: XCTestCase {
             XCTAssertTrue(names.contains(expected), expected)
         }
         for path in result.paths { XCTAssertTrue(FileManager.default.fileExists(atPath: path), path) }
+
+        // The answer keeps granite-answer/1: the client's mock and each entity at its count, held against what was made.
+        XCTAssertEqual((try JSONSerialization.jsonObject(with: answer) as? [String: Any])?["format"] as? String, AgentAnswerStandard.format)
+        XCTAssertEqual(result.expected.first, AgentExpected(kind: "client", name: "LemmyClient+Mock"))
+        XCTAssertTrue(result.expected.contains(AgentExpected(kind: "fixture", name: "Post")), "\(result.expected)")
+        let made = Set(result.made.map { AgentExpected(kind: $0.kind, name: $0.name) })
+        XCTAssertTrue(Set(result.expected).isSubset(of: made), "every entity at its count: \(result.made)")
+        XCTAssertEqual(result.made.first { $0.name == "Post" }?.path, package.appendingPathComponent("Sources/LemmyKit/Mocks/Fixtures/PostsFixture.swift").path)
+        XCTAssertEqual(result.problems.map(\.kind), ["model"], "no model was offered: the records are word lists'")
+        XCTAssertNil(result.asks, "no model, no asks")
+        XCTAssertEqual(MocksError.noPackage("no client package").refusal, AgentRefusal(.call, "no client package"))
     }
 }
 
