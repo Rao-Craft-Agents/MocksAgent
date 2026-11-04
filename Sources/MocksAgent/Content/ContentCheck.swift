@@ -1,5 +1,5 @@
 //  WHAT: A model's answer checked against the entity lines before a word of it lands: every field asked for, each of
-//        its type, a choice one of its cases, a handle unique and a handle, a title not given twice, a group one of
+//        its type, a choice one of its cases, a handle unique and a handle, a title not given twice nor opening as another does, a group one of
 //        the groups, nothing a placeholder; a thread's replies, at least half of them, each saying something new
 //        and answering what the agent's shape says. What fails is said in a sentence the model can act on.
 
@@ -14,6 +14,7 @@ enum ContentCheck {
         guard !items.isEmpty else { return ([], ["the answer held no list under \"\(ask.plural)\""]) }
         var good: [[String: JSONValue]] = [], problems: [String] = []
         var seen = taken
+        var openings = Set(taken.compactMap(opening))
         let groupKey = ContentPrompt.groupKey(ask)
         for (number, item) in items.prefix(count).enumerated() {
             guard case .object = item else { problems.append("\(number + 1): it is not an object"); continue }
@@ -33,14 +34,20 @@ enum ContentCheck {
                     wrong.append("`\(groupKey)` \(said?.compact ?? "is missing"), which is not one of the \(SwiftName.plural(ask.groupNoun))")
                 }
             }
-            // A handle or a title is said once.
+            // A handle or a title is said once, and a title does not open as another does.
             for field in ask.fields where field.role == .handle || field.role == .title {
                 guard case .string(let text)? = record[field.name] else { continue }
-                if seen.contains(text.lowercased()) { wrong.append("`\(field.name)` \"\(text)\" is already taken") }
+                if seen.contains(text.lowercased()) {
+                    wrong.append("`\(field.name)` \"\(text)\" is already taken")
+                } else if field.role == .title, let opening = opening(text), openings.contains(opening) {
+                    wrong.append("`\(field.name)` \"\(text)\" opens as another title does (\"\(opening)\"): begin it another way")
+                }
             }
             if wrong.isEmpty {
                 for field in ask.fields where field.role == .handle || field.role == .title {
-                    if case .string(let text)? = record[field.name] { seen.insert(text.lowercased()) }
+                    guard case .string(let text)? = record[field.name] else { continue }
+                    seen.insert(text.lowercased())
+                    if field.role == .title, let opening = opening(text) { openings.insert(opening) }
                 }
                 good.append(record)
             } else {
@@ -49,6 +56,17 @@ enum ContentCheck {
         }
         if items.count < count { problems.append("\(count - items.count) of the \(count) asked for were missing") }
         return (good, problems)
+    }
+
+    /// How a title opens: its first four words, lowercase, letters and digits only, a trailing number or "part" left
+    /// off. Nil under three words, which say too little to be another's. A feed of forty posts read as eight when five
+    /// pairs began "What's your best…", "I hand-drew a…" (Margin regime, 2026-11-03: every run).
+    static func opening(_ title: String) -> String? {
+        var words = title.lowercased().replacingOccurrences(of: #"[^a-z0-9 ]"#, with: " ", options: .regularExpression)
+            .split(separator: " ").map(String.init)
+        while let last = words.last, last.range(of: #"^(\d+|[ivx]+|part|pt)$"#, options: .regularExpression) != nil { words.removeLast() }
+        guard words.count >= 3 else { return nil }
+        return words.prefix(4).joined(separator: " ")
     }
 
     /// One field's value, checked and made exact: a choice in its case, a number from a string of digits, a handle in

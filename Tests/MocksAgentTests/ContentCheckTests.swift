@@ -40,6 +40,28 @@ final class ContentCheckTests: XCTestCase {
         XCTAssertTrue(said.contains("5: `name` \"Brown butter cookies\" is already taken"), said)
     }
 
+    /// PIN: a title does not open as another does, in this answer or one taken before: five pairs of posts that began
+    /// alike failed the Margin regime's stems bar in every run (2026-11-03/04).
+    func testATitleDoesNotOpenAsAnotherDoes() {
+        let answer = #"""
+        {"posts": [
+          {"name": "What's your best soup for a cold night?", "course": "main", "minutes": 30, "community": "soups"},
+          {"name": "What's your best soup trick?", "course": "main", "minutes": 20, "community": "soups"},
+          {"name": "I hand-drew a map of my pantry", "course": "starter", "minutes": 5, "community": "baking"},
+          {"name": "Leek soup", "course": "main", "minutes": 20, "community": "soups"},
+          {"name": "Leek soup again", "course": "main", "minutes": 25, "community": "soups"}
+        ]}
+        """#
+        let checked = ContentCheck.records(Data(answer.utf8), ask: ask, count: 5, taken: ["i hand drew a map of my garden"])
+        XCTAssertEqual(checked.good.compactMap { $0["name"]?.text }, ["What's your best soup for a cold night?", "Leek soup", "Leek soup again"],
+                       "a title under three words says too little to be another's")
+        let said = checked.problems.joined(separator: "\n")
+        XCTAssertTrue(said.contains("2: `name` \"What's your best soup trick?\" opens as another title does (\"what s your best\"): begin it another way"), said)
+        XCTAssertTrue(said.contains("3: `name` \"I hand-drew a map of my pantry\" opens as another title does (\"i hand drew a\")"), said)
+        XCTAssertEqual(ContentCheck.opening("Reading aloud vs silent, part 2"), "reading aloud vs silent")
+        XCTAssertNil(ContentCheck.opening("Leek soup"))
+    }
+
     func testAHandleIsAHandleAndUnique() {
         let people = RecordAsk(type: "Person", plural: "people", about: nil, fields: [
             AskField(name: "name", kind: .string, optional: false, role: .handle, note: "handle"),
