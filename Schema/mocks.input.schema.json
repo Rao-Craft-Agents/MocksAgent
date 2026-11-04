@@ -1,0 +1,63 @@
+{
+  "$id" : "https://github.com/Rao-Craft-Agents/MocksAgent/blob/main/Schema/mocks.input.schema.json",
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "description" : "Every field a call to mocks may give; `directory` is Craft's, never the model's.",
+  "properties" : {
+    "counts" : {
+      "description" : "how many records of a type, one line each: `posts: 40`, `comments: 120`, `people: 20`; 24 posts, three replies a post, 16 people and 8 groups when left out",
+      "items" : {
+        "type" : "string"
+      },
+      "type" : "array"
+    },
+    "endpoints" : {
+      "description" : "endpoint lines over the package's own, in network's line, for an endpoint the package's api.json lacks",
+      "items" : {
+        "type" : "string"
+      },
+      "type" : "array"
+    },
+    "entities" : {
+      "description" : "entity lines over the package's own, in the models line",
+      "items" : {
+        "type" : "string"
+      },
+      "type" : "array"
+    },
+    "package" : {
+      "description" : "the client package's folder, relative to the project (`Packages/RecipeKit`); found by its api.json when left out",
+      "type" : "string"
+    },
+    "rounds" : {
+      "description" : "how many answers the model may give one batch; 3 when left out",
+      "type" : "integer"
+    },
+    "scenarios" : {
+      "description" : "the scenarios the package's tests prove: normal, empty, failing, unauthorized, slow; every one when left out",
+      "items" : {
+        "enum" : [
+          "normal",
+          "empty",
+          "failing",
+          "unauthorized",
+          "slow"
+        ],
+        "type" : "string"
+      },
+      "type" : "array"
+    },
+    "seed" : {
+      "description" : "a number the picks are made from; the same seed and words make the same fixtures",
+      "type" : "integer"
+    },
+    "theme" : {
+      "description" : "what the app is and how it sounds, which the records are written in: `a cozy recipe-sharing community: home cooks posting what they made`",
+      "type" : "string"
+    }
+  },
+  "required" : [
+
+  ],
+  "title" : "What mocks takes (craft-agent/1)",
+  "type" : "object"
+}
