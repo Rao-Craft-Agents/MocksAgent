@@ -1,90 +1,66 @@
 # MocksAgent
 
-Realistic mock backend responses for an app's API, shipped as a [Granite](https://github.com/riteshpakala/Granite)
-agent package, so the whole app (its screens, previews, tests and screenshots) runs on believable data with no
-server. A call names the app's theme; the package writes into the API's client package (the one
-[NetworkAgent](https://github.com/Rao-Craft-Agents/NetworkAgent) made) a mock backend that answers every endpoint in
-the process: people with handles and faces, the groups they post in, posts in the app's own voice, comment threads
-with depth, counts that agree, pictures, lists that page and end, an item found by the id asked for, a body echoed
-back, and the error states on purpose.
+See an app full of life before its server exists. Say what the app is and how it sounds, and `mocks` gives its
+screens, previews, tests and screenshots a community to show: people with handles and faces, the groups they post in,
+posts in the app's own voice, and comment threads with depth. A mock backend answers every endpoint of the app's API
+in the process, and the same client turns to the live API when the mock is off.
 
-It is one of the [Rao Craft Agents](https://github.com/Rao-Craft-Agents): independent packages that, tagged in prompts
-along the life of a project, build an app of [Loom](https://github.com/riteshpakala/Loom)'s quality. `network`'s
-`.preview` client answers every endpoint with one sample; `mocks` gives the app a community to look at, and its tests
-the paging, empty, failing and signed-out states to prove.
-
-## How an app finds it
-
-MocksAgent is a `GraniteAgentPackage`, and it carries a record in its binary:
-
-```swift
-@used @section("__DATA_CONST,__granite")
-let mocksRecord: GraniteRoster.Record = { GraniteRoster.record(MocksAgent.self) }
-```
-
-In [Craft](https://github.com/riteshpakala/Craft), install it from the Agent Store or with
-`craft agents add https://github.com/Rao-Craft-Agents/MocksAgent.git`, then say `$mocks` in a request:
+## What you can ask
 
 ```
-$mocks give the app a cozy recipe-sharing community to show: home cooks posting weeknight dinners, bakes and
-ferments, about forty posts with their comment threads
+$mocks give the app a cozy recipe-sharing community: home cooks posting weeknight dinners, bakes and ferments
+$mocks believable data for Margin until the server exists: readers, their book clubs, 40 posts and 120 comments
+$mocks a pantry tracker shared by housemates for PantryKit, its tests proving the normal, empty and failing states
 ```
 
-The model writes the call; it shows on Craft's agent map as `mocks-1`, and the files it names are built and tested
+Craft writes the call from your request, shows it on its agent map as `mocks-1`, and builds and tests what it writes
 with the turn.
 
-## What a call takes and answers
+## What you get
 
-| Field | | |
-|---|---|---|
-| `package` | optional | the client package's folder, `Packages/RecipeKit`; the one under `Packages/` with an `api.json` when left out |
-| `theme` | optional | what the app is and how it sounds: the voice the records are written in |
-| `counts` | optional | how many records of a type, one line each: `posts: 40`, `comments: 120`, `people: 20` |
-| `scenarios` | optional | the scenarios the package's tests prove: `normal`, `empty`, `failing`, `unauthorized`, `slow`; all when left out |
-| `endpoints`, `entities` | optional | lines over the package's own `api.json` lines, in network's and the models line |
-| `seed` | optional | what the picks are made from: the same seed and words make the same fixtures |
-| `rounds` | optional | how many answers the model may give a batch; 3 when left out |
-| `directory` | the host's | the folder the host works in; a host fills it and does not show it to a model, and a call whose JSON leaves it out works in the folder the host offers (`AgentHost.directory`) |
+- **A community to look at.** People, groups, posts and threads whose counts agree, a few busy authors, votes and a
+  pinned post, dated over the last three weeks and moved forward with time, so the newest post always looks fresh.
+- **Every endpoint answered.** Lists that page and end, queries that narrow and search, an item found by the id asked
+  for, a body echoed back into what it makes, and a sign-in's token.
+- **Pictures that load.** Eighteen drawn pictures of faces, dishes and places, served as `data:` URLs that
+  `AsyncImage` and `URLSession` load on iOS and macOS.
+- **The states to prove.** `RecipeClient.mock()` for previews, and `.failing`, `.empty`, `.unauthorized` and `.slow`
+  for the rest, with tests that every fixture decodes, every endpoint answers, pages end and each scenario fails as it
+  should.
+- **One switch for the app.** `RecipeClient.current` is the mock in previews, in tests and in a launch with
+  `-mock YES`, and the live API otherwise, so UI tests and screenshots run on the same data.
 
-The answer is a `MocksResult`: every file written (`path`, `paths`, absolute), the package, the client, the endpoints
-answered, how many records of each type, the pictures, whether the host's model wrote the words, and a sentence for
-anything else.
+## How it works
 
-## What it writes into the client package
+- It reads the API from the client package `network` wrote (its names, keys, dates, paging and tokens), and refuses a
+  call it cannot honour with every reason, writing nothing.
+- Craft's model writes the words from your theme in small batches. Each answer is checked against the API's types
+  (every field and its type, handles and titles unique, a post in a community that exists, replies that answer
+  earlier ones) and asked again with what was wrong; with no model offered, it uses word lists.
+- Every count is counted from the records it made, and the same seed and words make the same fixtures; a later call
+  keeps the theme and the seed.
+- Every file is parsed with `swiftc -parse` before any lands, and what it makes is built and tested with the turn.
 
-| File | What |
-|---|---|
-| `Sources/<Kit>/Mocks/<Client>+Mock.swift` | `<Client>.mock(_ scenario: MockScenario = .normal, latency: Duration = .milliseconds(250))`: the client, signed in with a token kept in memory, on the mock backend; and the routes, one a line of the API |
-| `Sources/<Kit>/Mocks/Fixtures/<Endpoint>Fixture.swift` | each endpoint's JSON as raw string literals: a list's pages, a lookup's answer and items, what a body makes |
-| `Sources/<Kit>/Mocks/MockMode.swift` | `MockMode.isOn` (`-mock YES`, `MOCK=1`, Xcode's previews, a test run; `-mock NO` turns it off; `-mockScenario empty` picks a scenario) and `<Client>.current`, the mock when on and the live client otherwise, settable so a test can put a failing mock in its place |
-| `Sources/<Kit>/Mocks/MockServer.swift` and the rest | the transport that answers in the process, `MockScenario`, the routes and their answers, the JSON it cuts, the pictures (`MockImages`), the shared fixtures (`MockFixtures`) |
-| `Tests/<Kit>Tests/MockFixtureTests.swift` | every fixture decodes as its type, every endpoint answers through `.mock()`, the item asked for is the one found, pages end, a query narrows its list, every scenario fails as it should, `current` is the mock in a test and can be replaced, every picture loads |
-| `mocks.json` | the theme, the seed, the counts and the files, so a later call keeps them and takes away what is gone |
+## Works well with
 
-In the app: `RecipeClient.mock()` in a preview, `.mock(.failing)`, `.empty`, `.unauthorized` and `.slow` for the
-other states, `(client.transport as? MockServer)?.scenario = .normal` to change one between two calls, and
-`RecipeClient.current` in the services, so a launch with `-mock YES` (UI tests, screenshots) runs on the mock.
+`mocks` follows `network`: it writes into the client package `network` made, and is called again when `network`
+changes the API. Where `network`'s `.preview` client answers every endpoint with one sample, `mocks` gives the pages
+`granite` makes and the screens `loom` writes a community to show. The app's own types come from `models`.
 
-## How the mock is made
+## Get it
 
-| Step | What |
-|---|---|
-| Read | the package's `api.json` lines resolved as network resolves them (the client's names, keys, dates, paging, tokens); a call it cannot honour is refused with every reason |
-| Shape | each type read as a record (it has an `id`), a view put together from records, a value counted from the record it sits in, or a choice; the people, the groups, the content and its replies found from the API's own names (`creatorID` names the person, `postID` the `Post`) |
-| Words | what the records say, written by the host's model from the theme in small batches (ten people, six posts, a dozen replies an ask), each answer checked against the entity lines (every field, its type, a choice in its cases, handles and titles unique, a post's community one that exists, a thread's replies answering earlier ones with depth) and asked again with the reasons; word lists when no model is offered |
-| World | ids that grow with time, dates over the last three weeks, authors with a few busy ones, threads whose paths and parent ids agree, votes, a pinned post; every count counted from the world |
-| Answers | a paged list cut from every record of its kind (narrowed by the ids a query names, searched, sorted, its envelope's total counted, the next cursor in its field or `Link` header), an item found by the id or name the request names with its lists, a body echoed into what it makes, a sign-in's token |
-| Pictures | eighteen drawn with CoreGraphics (faces, dishes, places: soft gradients with a mark, no symbols or text) as base64 PNG, named `mock-image://<name>` in the fixtures and served as `data:` URLs, which `AsyncImage` and `URLSession` load on iOS and macOS |
-| Time | every date moved by the time since the fixtures were written, so the newest post is always as fresh as it was then |
-| Check | every file staged, parsed with `swiftc -parse`, then moved into the package together |
+In Craft, install Mocks from the Agent Store, or run
+`craft agents add https://github.com/Rao-Craft-Agents/MocksAgent.git`, then say `$mocks` in a request.
 
-## Testing
+## Requirements
 
-```
-swift test                     # the record, the schema, the shapes, the world, the answers, the checks, the files
-MOCKS_BUILD=1 swift test       # an app made by the granite and network runners, mocked on a scripted model, the
-                               # package's tests run on macOS and an iOS simulator, a SwiftUI feed drawn to a PNG;
-                               # a Mastodon-like and a recipe API mocked on word lists, their tests run
-```
+- A Mac on macOS 14 or later, with Xcode.
+- An API client package in the project written by `network`, under `Packages/` and found by its `api.json`.
+- The mock answers in the app's own process on iOS and macOS; nothing reaches a server.
+- MIT licensed.
 
-MIT licensed.
+## For developers
+
+What a call takes and answers, what it writes into the client package and how the mock is made are in the
+[reference](Docs/Reference.md). The agent standard it follows is [Schema/Mocks.md](Schema/Mocks.md), and how it is
+measured is [TESTING.md](TESTING.md).
